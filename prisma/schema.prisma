@@ -1,10 +1,9 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client-js"
+  moduleFormat = "cjs"
 }
 
 datasource db {
@@ -12,34 +11,58 @@ datasource db {
 }
 
 model User {
-  id        Int       @id @default(autoincrement())
-  email     String    @unique
-  password  String    
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String   
   name      String?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
   expenses  Expense[]
-  savings   Saving[]
+  goals     SavingGoal[]
 }
 
 model Expense {
-  id          Int      @id @default(autoincrement())
-  title       String   
-  amount      Decimal  
-  currency    String   @default("MMK")
-  date        DateTime @default(now())
-  category    String   
-  userId      Int
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        Int      @id @default(autoincrement())
+  title     String   
+  amount    Decimal  @db.Decimal(12, 2) // Explicit scale/precision for financial safety
+  currency  String   @default("MMK")
+  date      DateTime @default(now())
+  category  String   
+  
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId]) // Speeds up queries fetching expenses for a specific user
 }
 
-model Saving {
-  id          Int      @id @default(autoincrement())
-  goalName    String   // e.g., "New Phone Goal"
-  targetAmount Decimal
-  savedAmount  Decimal  @default(0.0)
-  currency    String   @default("MMK")
-  createdAt   DateTime @default(now())
-  userId      Int
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+model SavingGoal {
+  id           Int                 @id @default(autoincrement())
+  title        String              // e.g., "New Phone", "Emergency Fund"
+  targetAmount Decimal             @db.Decimal(12, 2)
+  currency     String              @default("MMK")
+  status       String              @default("ACTIVE") // ACTIVE, COMPLETED, PAUSED
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  
+  userId       Int
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Historical ledger entries tracking money moving in and out of this specific goal
+  transactions SavingTransaction[]
+
+  @@index([userId])
+}
+
+model SavingTransaction {
+  id           Int        @id @default(autoincrement())
+  amount       Decimal    @db.Decimal(12, 2) // Positive for savings, negative for withdrawals
+  date         DateTime   @default(now())
+  note         String?    // e.g., "Bonus cash allocation"
+  
+  goalId       Int
+  goal         SavingGoal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  @@index([goalId])
 }

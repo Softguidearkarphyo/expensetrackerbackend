@@ -3,16 +3,18 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { UsersModule } from './users/users.module';
 import { ExpenseModule } from './expense/expense.module';
-import { SavingModule } from './saving/saving.module';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthModule } from './auth/auth.module';
+import { SavingGoalModule } from './saving-goal/saving-goal.module';
+import { SavingTransactionModule } from './saving-transaction/saving-transaction.module';
 
 @Module({
   imports: [
     UsersModule, 
     ExpenseModule, 
-    SavingModule, 
-    AuthModule
+    AuthModule, 
+    SavingGoalModule, 
+    SavingTransactionModule
   ],
   controllers: [AppController],
   providers: [
