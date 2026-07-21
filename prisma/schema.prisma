@@ -17,24 +17,22 @@ model User {
   name      String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
-  // Relations
   expenses  Expense[]
   goals     SavingGoal[]
 }
 
 model Expense {
-  id        Int      @id @default(autoincrement())
-  title     String   
-  amount    Decimal  @db.Decimal(12, 2) // Explicit scale/precision for financial safety
-  currency  String   @default("MMK")
-  date      DateTime @default(now())
-  category  String   
-  
-  userId    Int
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId]) // Speeds up queries fetching expenses for a specific user
+  id          Int         @id @default(autoincrement())
+  title       String   
+  amount      Decimal     @db.Decimal(12, 2)
+  currency    String      @default("MMK")
+  date        DateTime    @default(now())   
+  userId      Int
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goalId      Int?
+  goal        SavingGoal? @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  @@index([userId])
+  @@index([goalId])
 }
 
 model SavingGoal {
@@ -45,13 +43,10 @@ model SavingGoal {
   status       String              @default("ACTIVE") // ACTIVE, COMPLETED, PAUSED
   createdAt    DateTime            @default(now())
   updatedAt    DateTime            @updatedAt
-  
   userId       Int
   user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  // Historical ledger entries tracking money moving in and out of this specific goal
   transactions SavingTransaction[]
-
+  expenses     Expense[]
   @@index([userId])
 }
 
@@ -60,9 +55,7 @@ model SavingTransaction {
   amount       Decimal    @db.Decimal(12, 2) // Positive for savings, negative for withdrawals
   date         DateTime   @default(now())
   note         String?    // e.g., "Bonus cash allocation"
-  
   goalId       Int
   goal         SavingGoal @relation(fields: [goalId], references: [id], onDelete: Cascade)
-
   @@index([goalId])
 }
