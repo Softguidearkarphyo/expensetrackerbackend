@@ -22,6 +22,11 @@ export class ExpenseController {
     return this.expenseService.findByGoal(goalId);
   }
 
+  @Get('goal-expense/:goalId')
+  findExpenseByGoal(@Param('goalId') goalId: string) {
+    return this.expenseService.findExpenseByGoal(goalId ? +goalId : undefined);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.expenseService.findOne(+id);

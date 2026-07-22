@@ -58,6 +58,25 @@ export class ExpenseService {
     return expense;
   }
 
+   async findExpenseByGoal(goalId?: number) {
+    const expenses = await this.prisma.expense.findMany({
+      where: goalId ? { goalId } : undefined,
+      orderBy: { date: 'desc' },
+    });
+
+    const totalAmount = expenses.reduce(
+      (total, expense) => {
+        return total + Number(expense.amount);
+      },
+      0
+    );
+
+    return {
+      totalAmount,
+    };
+    
+  }
+
   async update(id: number, updateExpenseDto: UpdateExpenseDto) {
     await this.findOne(id);
 
