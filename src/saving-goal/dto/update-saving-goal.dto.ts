@@ -1,4 +1,4 @@
 import { PartialType } from '@nestjs/mapped-types';
-import { CreateSavingGoalDto } from './create-saving-goal.dto';
+import { CreateGoalDto } from './create-saving-goal.dto';
 
-export class UpdateSavingGoalDto extends PartialType(CreateSavingGoalDto) {}
+export class UpdateGoalDto extends PartialType(CreateGoalDto) {}

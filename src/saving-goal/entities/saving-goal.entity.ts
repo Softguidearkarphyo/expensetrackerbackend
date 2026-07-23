@@ -1,1 +1,1 @@
-export class SavingGoal {}
+export class goal {}

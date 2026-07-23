@@ -13,49 +13,59 @@ datasource db {
 model User {
   id        Int      @id @default(autoincrement())
   email     String   @unique
-  password  String   
+  password  String
   name      String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  expenses  Expense[]
-  goals     SavingGoal[]
+  goals Goal[]
+  notifications Notification[]
+}
+
+model Goal {
+  id            Int      @id @default(autoincrement())
+  title         String   
+  targetAmount  Decimal  @db.Decimal(12, 2)
+  currentAmount Decimal  @default(0.00) @db.Decimal(12, 2)
+  currency      String   @default("MMK")
+  status        Int      @default(1)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  userId Int
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  savings  Saving[]
+  expenses Expense[]
+  @@index([userId])
 }
 
 model Expense {
-  id          Int         @id @default(autoincrement())
-  title       String   
-  amount      Decimal     @db.Decimal(12, 2)
-  currency    String      @default("MMK")
-  date        DateTime    @default(now())   
-  userId      Int
-  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  goalId      Int?
-  goal        SavingGoal? @relation(fields: [goalId], references: [id], onDelete: SetNull)
-  @@index([userId])
+  id     Int      @id @default(autoincrement())
+  title  String
+  amount Decimal  @db.Decimal(12, 2)
+  date   DateTime @default(now())
+  goalId Int
+  goal   Goal @relation(fields: [goalId], references: [id], onDelete: Cascade)
   @@index([goalId])
 }
 
-model SavingGoal {
-  id           Int                 @id @default(autoincrement())
-  title        String              // e.g., "New Phone", "Emergency Fund"
-  targetAmount Decimal             @db.Decimal(12, 2)
-  currency     String              @default("MMK")
-  status       String              @default("ACTIVE") // ACTIVE, COMPLETED, PAUSED
-  createdAt    DateTime            @default(now())
-  updatedAt    DateTime            @updatedAt
-  userId       Int
-  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  transactions SavingTransaction[]
-  expenses     Expense[]
-  @@index([userId])
+model Saving {
+  id     Int      @id @default(autoincrement())
+  title  String?
+  amount Decimal  @db.Decimal(12, 2)
+  date   DateTime @default(now())
+  goalId Int
+  goal   Goal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  @@index([goalId])
 }
 
-model SavingTransaction {
-  id           Int        @id @default(autoincrement())
-  amount       Decimal    @db.Decimal(12, 2) // Positive for savings, negative for withdrawals
-  date         DateTime   @default(now())
-  note         String?    // e.g., "Bonus cash allocation"
-  goalId       Int
-  goal         SavingGoal @relation(fields: [goalId], references: [id], onDelete: Cascade)
-  @@index([goalId])
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int      // 👈 CHANGE String TO Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  title     String
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
 }

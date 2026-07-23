@@ -5,7 +5,7 @@ import { UsersModule } from './users/users.module';
 import { ExpenseModule } from './expense/expense.module';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthModule } from './auth/auth.module';
-import { SavingGoalModule } from './saving-goal/saving-goal.module';
+import { GoalModule } from './saving-goal/saving-goal.module';
 import { SavingTransactionModule } from './saving-transaction/saving-transaction.module';
 
 @Module({
@@ -13,7 +13,7 @@ import { SavingTransactionModule } from './saving-transaction/saving-transaction
     UsersModule, 
     ExpenseModule, 
     AuthModule, 
-    SavingGoalModule, 
+    GoalModule, 
     SavingTransactionModule
   ],
   controllers: [AppController],

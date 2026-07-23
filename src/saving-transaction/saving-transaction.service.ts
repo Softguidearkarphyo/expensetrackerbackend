@@ -5,89 +5,137 @@ import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
 export class SavingTransactionService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async create(createSavingTransactionDto: CreateSavingTransactionDto) {
-    const goal = await this.prisma.savingGoal.findUnique({
-      where: { id: createSavingTransactionDto.goalId },
+    const { amount, note, goalId } = createSavingTransactionDto;
+    const goal = await this.prisma.goal.findUnique({
+      where: { id: goalId },
     });
 
     if (!goal) {
-      throw new NotFoundException(`SavingGoal #${createSavingTransactionDto.goalId} not found`);
+      throw new NotFoundException(`Goal #${goalId} not found`);
     }
 
-    return this.prisma.savingTransaction.create({
-      data: {
-        amount: createSavingTransactionDto.amount,
-        date: new Date(),
-        note: createSavingTransactionDto.note,
-        goalId: createSavingTransactionDto.goalId,
-      },
+    return this.prisma.$transaction(async (tx) => {
+      const saving = await tx.saving.create({
+        data: {
+          amount,
+          title: note,
+          date: new Date(),
+          goalId,
+        },
+      });
+
+      await tx.goal.update({
+        where: { id: goalId },
+        data: {
+          currentAmount: {
+            increment: amount,
+          },
+        },
+      });
+
+      return saving;
     });
   }
 
   async findAll(goalId?: number) {
-    return this.prisma.savingTransaction.findMany({
+    return this.prisma.saving.findMany({
       where: goalId ? { goalId } : undefined,
       orderBy: { date: 'desc' },
     });
   }
 
   async findFinanceByGoal(goalId?: number) {
-    return this.prisma.savingTransaction.findMany({
+    return this.prisma.saving.findMany({
       where: goalId ? { goalId } : undefined,
       orderBy: { date: 'desc' },
     });
   }
 
   async findFinanceCountByGoal(goalId?: number) {
-    const finances = await this.prisma.savingTransaction.findMany({
+    const aggregation = await this.prisma.saving.aggregate({
       where: goalId ? { goalId } : undefined,
-      orderBy: { date: 'desc' },
+      _sum: {
+        amount: true,
+      },
     });
 
-    const totalAmount = finances.reduce(
-      (total, finance) => {
-        return total + Number(finance.amount);
-      },
-      0
-    );
-
     return {
-      totalAmount,
+      totalAmount: aggregation._sum.amount ? Number(aggregation._sum.amount) : 0,
     };
-    
   }
 
   async findOne(id: number) {
-    const transaction = await this.prisma.savingTransaction.findUnique({
+    const saving = await this.prisma.saving.findUnique({
       where: { id },
     });
 
-    if (!transaction) {
-      throw new NotFoundException(`SavingTransaction #${id} not found`);
+    if (!saving) {
+      throw new NotFoundException(`Saving #${id} not found`);
     }
 
-    return transaction;
+    return saving;
   }
 
   async update(id: number, updateSavingTransactionDto: UpdateSavingTransactionDto) {
-    await this.findOne(id);
+    const oldSaving = await this.findOne(id);
+    const newAmount = updateSavingTransactionDto.amount;
 
-    return this.prisma.savingTransaction.update({
+    // Adjust goal balance if amount changed during update
+    if (newAmount !== undefined && Number(newAmount) !== Number(oldSaving.amount)) {
+      const amountDifference = Number(newAmount) - Number(oldSaving.amount);
+
+      return this.prisma.$transaction(async (tx) => {
+        const updatedSaving = await tx.saving.update({
+          where: { id },
+          data: {
+            amount: newAmount,
+            title: updateSavingTransactionDto.note,
+          },
+        });
+
+        await tx.goal.update({
+          where: { id: oldSaving.goalId },
+          data: {
+            currentAmount: {
+              increment: amountDifference,
+            },
+          },
+        });
+
+        return updatedSaving;
+      });
+    }
+
+    return this.prisma.saving.update({
       where: { id },
       data: {
-        amount: updateSavingTransactionDto.amount,
-        note: updateSavingTransactionDto.note,
+        title: updateSavingTransactionDto.note,
       },
     });
   }
 
   async remove(id: number) {
-    await this.findOne(id);
+    const saving = await this.findOne(id);
 
-    return this.prisma.savingTransaction.delete({
-      where: { id },
+    // Atomic transaction: delete saving record AND decrement goal currentAmount
+    return this.prisma.$transaction(async (tx) => {
+      const deletedSaving = await tx.saving.delete({
+        where: { id },
+      });
+
+      await tx.goal.update({
+        where: { id: saving.goalId },
+        data: {
+          currentAmount: {
+            decrement: saving.amount,
+          },
+        },
+      });
+
+      return deletedSaving;
     });
   }
 }
