@@ -13,8 +13,8 @@ export class ExpenseController {
   }
 
   @Get()
-  findAll() {
-    return this.expenseService.findAll();
+  findAll(@Query('userId') userId?: string) {
+    return this.expenseService.findAll(userId ? +userId : undefined);
   }
 
   @Get('goal/:goalId')
