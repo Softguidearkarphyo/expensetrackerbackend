@@ -1,26 +1,90 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateExpenseDto } from './dto/create-expense.dto';
 import { UpdateExpenseDto } from './dto/update-expense.dto';
+import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
 export class ExpenseService {
-  create(createExpenseDto: CreateExpenseDto) {
-    return 'This action adds a new expense';
+  constructor(private readonly prisma: PrismaService) {}
+
+  async create(createExpenseDto: CreateExpenseDto) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: createExpenseDto.userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`User #${createExpenseDto.userId} not found`);
+    }
+
+    return this.prisma.expense.create({
+      data: {
+        title: createExpenseDto.title,
+        amount: createExpenseDto.amount,
+        category: createExpenseDto.category,
+        userId: createExpenseDto.userId,
+        ...(createExpenseDto.currency ? { currency: createExpenseDto.currency } : {}),
+      },
+    });
   }
 
-  findAll() {
-    return `This action returns all expense`;
+  async findAll(userId?: number) {
+    return this.prisma.expense.findMany({
+      where: userId ? { userId } : undefined,
+      orderBy: { date: 'desc' },
+    });
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} expense`;
+  async findOne(id: number) {
+    const expense = await this.prisma.expense.findUnique({
+      where: { id },
+    });
+
+    if (!expense) {
+      throw new NotFoundException(`Expense #${id} not found`);
+    }
+
+    return expense;
   }
 
-  update(id: number, updateExpenseDto: UpdateExpenseDto) {
-    return `This action updates a #${id} expense`;
+  async update(id: number, updateExpenseDto: UpdateExpenseDto) {
+    await this.findOne(id);
+
+    const data: {
+      title?: string;
+      amount?: number;
+      currency?: string;
+      category?: string;
+      userId?: number;
+    } = {
+      title: updateExpenseDto.title,
+      amount: updateExpenseDto.amount,
+      currency: updateExpenseDto.currency,
+      category: updateExpenseDto.category,
+    };
+
+    if (updateExpenseDto.userId !== undefined) {
+      const user = await this.prisma.user.findUnique({
+        where: { id: updateExpenseDto.userId },
+      });
+
+      if (!user) {
+        throw new NotFoundException(`User #${updateExpenseDto.userId} not found`);
+      }
+
+      data.userId = updateExpenseDto.userId;
+    }
+
+    return this.prisma.expense.update({
+      where: { id },
+      data,
+    });
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} expense`;
+  async remove(id: number) {
+    await this.findOne(id);
+
+    return this.prisma.expense.delete({
+      where: { id },
+    });
   }
 }
