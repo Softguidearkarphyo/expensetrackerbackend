@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, ParseIntPipe } from '@nestjs/common';
 import { ExpenseService } from './expense.service';
 import { CreateExpenseDto } from './dto/create-expense.dto';
 import { UpdateExpenseDto } from './dto/update-expense.dto';
@@ -15,6 +15,16 @@ export class ExpenseController {
   @Get()
   findAll(@Query('userId') userId?: string) {
     return this.expenseService.findAll(userId ? +userId : undefined);
+  }
+
+  @Get('goal/:goalId')
+  findByGoal(@Param('goalId', ParseIntPipe) goalId: number) {
+    return this.expenseService.findByGoal(goalId);
+  }
+
+  @Get('goal-expense/:goalId')
+  findExpenseByGoal(@Param('goalId') goalId: string) {
+    return this.expenseService.findExpenseByGoal(goalId ? +goalId : undefined);
   }
 
   @Get(':id')

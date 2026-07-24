@@ -1,20 +1,28 @@
-import { IsNotEmpty,IsString } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsOptional, IsString, IsPositive } from 'class-validator';
+import { Type } from 'class-transformer';
 
-export class CreateSavingGoalDto {
+export class CreateGoalDto {
   @IsNotEmpty()
+  @IsString()
   title!: string;
 
   @IsNotEmpty()
+  @Type(() => Number)
+  @IsNumber()
+  @IsPositive()
   targetAmount!: number;
 
-  @IsNotEmpty()
-  status!: string;
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  status?: number;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  currency!: string;
+  currency?: string;
 
   @IsNotEmpty()
+  @Type(() => Number)
+  @IsNumber()
   userId!: number;
 }
-

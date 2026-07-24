@@ -1,4 +1,5 @@
-import { IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsString, IsPositive } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class CreateExpenseDto {
   @IsNotEmpty()
@@ -6,19 +7,13 @@ export class CreateExpenseDto {
   title!: string;
 
   @IsNotEmpty()
+  @Type(() => Number)
   @IsNumber()
+  @IsPositive()
   amount!: number;
 
-  @IsOptional()
-  @IsString()
-  currency?: string;
-
   @IsNotEmpty()
-  @IsString()
-  category!: string;
-
-  @IsNotEmpty()
+  @Type(() => Number)
   @IsNumber()
-  userId!: number;
+  goalId!: number;
 }
-

@@ -8,28 +8,50 @@ export class ExpenseService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(createExpenseDto: CreateExpenseDto) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: createExpenseDto.userId },
+    const { title, amount, goalId } = createExpenseDto;
+
+    // 1. Verify Goal exists
+    const goal = await this.prisma.goal.findUnique({
+      where: { id: goalId },
     });
 
-    if (!user) {
-      throw new NotFoundException(`User #${createExpenseDto.userId} not found`);
+    if (!goal) {
+      throw new NotFoundException(`Goal #${goalId} not found`);
     }
 
-    return this.prisma.expense.create({
-      data: {
-        title: createExpenseDto.title,
-        amount: createExpenseDto.amount,
-        category: createExpenseDto.category,
-        userId: createExpenseDto.userId,
-        ...(createExpenseDto.currency ? { currency: createExpenseDto.currency } : {}),
-      },
+    return this.prisma.$transaction(async (tx) => {
+      const expense = await tx.expense.create({
+        data: {
+          title,
+          amount,
+          goalId,
+          date: new Date(),
+        },
+      });
+      
+      await tx.goal.update({
+        where: { id: goalId },
+        data: {
+          currentAmount: {
+            decrement: amount,
+          },
+        },
+      });
+
+      return expense;
     });
   }
 
-  async findAll(userId?: number) {
+  async findAll(goalId?: number) {
     return this.prisma.expense.findMany({
-      where: userId ? { userId } : undefined,
+      where: goalId ? { goalId } : undefined,
+      orderBy: { date: 'desc' },
+    });
+  }
+
+  async findByGoal(goalId: number) {
+    return this.prisma.expense.findMany({
+      where: { goalId },
       orderBy: { date: 'desc' },
     });
   }
@@ -46,45 +68,74 @@ export class ExpenseService {
     return expense;
   }
 
-  async update(id: number, updateExpenseDto: UpdateExpenseDto) {
-    await this.findOne(id);
+  async findExpenseByGoal(goalId?: number) {
+    const aggregation = await this.prisma.expense.aggregate({
+      where: goalId ? { goalId } : undefined,
+      _sum: {
+        amount: true,
+      },
+    });
 
-    const data: {
-      title?: string;
-      amount?: number;
-      currency?: string;
-      category?: string;
-      userId?: number;
-    } = {
-      title: updateExpenseDto.title,
-      amount: updateExpenseDto.amount,
-      currency: updateExpenseDto.currency,
-      category: updateExpenseDto.category,
+    return {
+      totalAmount: aggregation._sum.amount ? Number(aggregation._sum.amount) : 0,
     };
+  }
 
-    if (updateExpenseDto.userId !== undefined) {
-      const user = await this.prisma.user.findUnique({
-        where: { id: updateExpenseDto.userId },
+  async update(id: number, updateExpenseDto: UpdateExpenseDto) {
+    const oldExpense = await this.findOne(id);
+    const newAmount = updateExpenseDto.amount;
+
+    // Adjust goal balance if amount changed during update
+    if (newAmount !== undefined && Number(newAmount) !== Number(oldExpense.amount)) {
+      const amountDifference = Number(newAmount) - Number(oldExpense.amount);
+
+      return this.prisma.$transaction(async (tx) => {
+        const updatedExpense = await tx.expense.update({
+          where: { id },
+          data: {
+            title: updateExpenseDto.title,
+            amount: newAmount,
+          },
+        });
+
+        await tx.goal.update({
+          where: { id: oldExpense.goalId },
+          data: {
+            currentAmount: {
+              decrement: amountDifference,
+            },
+          },
+        });
+
+        return updatedExpense;
       });
-
-      if (!user) {
-        throw new NotFoundException(`User #${updateExpenseDto.userId} not found`);
-      }
-
-      data.userId = updateExpenseDto.userId;
     }
 
     return this.prisma.expense.update({
       where: { id },
-      data,
+      data: {
+        title: updateExpenseDto.title,
+      },
     });
   }
 
   async remove(id: number) {
-    await this.findOne(id);
+    const expense = await this.findOne(id);
+    return this.prisma.$transaction(async (tx) => {
+      const deletedExpense = await tx.expense.delete({
+        where: { id },
+      });
 
-    return this.prisma.expense.delete({
-      where: { id },
+      await tx.goal.update({
+        where: { id: expense.goalId },
+        data: {
+          currentAmount: {
+            increment: expense.amount,
+          },
+        },
+      });
+
+      return deletedExpense;
     });
   }
 }
